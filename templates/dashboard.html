@@ -1,0 +1,560 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Giám Sát An Toàn & Phân Tích Bot{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div>
+        <h2 style="font-size: 1.8rem; font-weight: 700; color: #fff;">📊 Bảng Điều Khiển An Ninh & Phân Tích Bot</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+            Theo dõi lưu lượng truy cập thời gian thực, hiệu quả chặn bot và đối chiếu bảo vệ A/B Testing.
+        </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <a href="{{ url_for('demo') }}" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem;">
+            🧪 Demo Thực Hành
+        </a>
+        <button id="btn-refresh" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="location.reload();">
+            🔄 Làm Mới
+        </button>
+
+        <form method="POST" action="{{ url_for('toggle_captcha') }}" style="display: inline;">
+            <button type="submit" class="btn {% if captcha_enabled %}btn-secondary{% else %}btn-primary{% endif %}" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem;">
+                {% if captcha_enabled %}
+                    🔴 Chuyển sang TẮT CAPTCHA
+                {% else %}
+                    🟢 Chuyển sang BẬT CAPTCHA
+                {% endif %}
+            </button>
+        </form>
+
+        <form method="POST" action="{{ url_for('clear_logs') }}" style="display: inline;" onsubmit="return confirm('Bạn có chắc chắn muốn xóa toàn bộ log và reset Rate Limiter?');">
+            <button type="submit" class="btn btn-secondary" style="width: auto; padding: 0.5rem 1rem; font-size: 0.85rem; color: #f87171;">
+                🗑️ Xóa Sạch Log
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 4 Key Metrics Cards -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="metric-icon blue">🌐</div>
+        <div class="metric-data">
+            <h3 id="stat-total">{{ stats.total_requests }}</h3>
+            <p>Tổng Lượt Yêu Cầu</p>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon green">✅</div>
+        <div class="metric-data">
+            <h3 id="stat-passed">{{ stats.passed_requests }}</h3>
+            <p>Thành Công (HTTP 200)</p>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon red">🛑</div>
+        <div class="metric-data">
+            <h3 id="stat-blocked">{{ stats.blocked_requests }}</h3>
+            <p>Bị Chặn / Thất Bại</p>
+        </div>
+    </div>
+
+    <div class="metric-card">
+        <div class="metric-icon amber">🤖</div>
+        <div class="metric-data">
+            <h3 id="stat-bots">{{ (stats.bot_breakdown.get('http_bot', 0) + stats.bot_breakdown.get('selenium_bot', 0) + stats.bot_breakdown.get('cv_bot', 0)) }}</h3>
+            <p>Lưu Lượng Bot Phát Hiện</p>
+        </div>
+    </div>
+</div>
+
+<!-- A/B Comparison: CAPTCHA ON vs OFF -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <!-- Card ON -->
+    <div class="card" style="border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(16, 185, 129, 0.04);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="color: #34d399; font-size: 1.1rem; font-weight: 600;">🛡️ KHI BẬT CAPTCHA (Bảo Vệ Đa Lớp)</h3>
+            <span class="badge-status active"><span class="dot green"></span> Active</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+            Slider Puzzle CAPTCHA chặn các yêu cầu không có thao tác thị giác từ bot.
+        </p>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+            <span>Lượt yêu cầu: <strong>{{ analytics.on.total }}</strong></span>
+            <span>Bị chặn: <strong style="color: #f87171;">{{ analytics.on.blocked }}</strong></span>
+            <span>Tỉ lệ chặn: <strong style="color: #34d399;">{{ analytics.on.block_rate }}%</strong></span>
+        </div>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+            <div style="width: {{ analytics.on.block_rate }}%; height: 100%; background: linear-gradient(90deg, #10b981, #06b6d4);"></div>
+        </div>
+    </div>
+
+    <!-- Card OFF -->
+    <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.04);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="color: #fbbf24; font-size: 1.1rem; font-weight: 600;">⚡ KHI TẮT CAPTCHA (Môi Trường Lỗ Hổng)</h3>
+            <span class="badge-status inactive"><span class="dot amber"></span> Disabled</span>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+            Không có lớp xác thực con người, bot tự do brute-force và gửi spam.
+        </p>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+            <span>Lượt yêu cầu: <strong>{{ analytics.off.total }}</strong></span>
+            <span>Lọt qua: <strong style="color: #34d399;">{{ analytics.off.passed }}</strong></span>
+            <span>Tỉ lệ chặn: <strong style="color: #f87171;">{{ analytics.off.block_rate }}%</strong></span>
+        </div>
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+            <div style="width: {{ analytics.off.block_rate }}%; height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444);"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Bot Breakdown Badges Summary -->
+<div class="card" style="margin-bottom: 2rem; padding: 1.25rem;">
+    <div style="display: flex; gap: 2rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+        <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.85rem; color: var(--text-dim); font-weight: 600; text-transform: uppercase;">Phân loại tác tử:</span>
+            <span class="tag tag-human">👤 Human: {{ stats.bot_breakdown.get('human', 0) }}</span>
+            <span class="tag tag-http-bot">🤖 HTTP Bot: {{ stats.bot_breakdown.get('http_bot', 0) }}</span>
+            <span class="tag tag-selenium">🕷️ Selenium Bot: {{ stats.bot_breakdown.get('selenium_bot', 0) }}</span>
+            <span class="tag tag-cv">👁️ CV Solver: {{ stats.bot_breakdown.get('cv_bot', 0) }}</span>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <span class="code-tag" style="color: #fbbf24; background: rgba(245, 158, 11, 0.1);">
+                🛑 Rate Limiter Kích Hoạt: {{ analytics.rate_limit_count }} lần (HTTP 429)
+            </span>
+        </div>
+    </div>
+</div>
+
+
+<!-- ================= BOT ATTACK SIMULATION LAB ================= -->
+<div id="bot-lab" class="card" style="margin-bottom: 2rem; border: 1px solid rgba(56, 189, 248, 0.3); background: rgba(15, 23, 42, 0.95); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.5rem;">⚡</span>
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: #38bdf8; margin: 0;">Khu Vực Mô Phỏng &amp; Thử Nghiệm Tấn Công Bot (Live Bot Lab)</h3>
+                <span class="badge-status active" style="font-size: 0.7rem; padding: 0.2rem 0.6rem;">Interactive Demo</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.35rem;">
+                Kích hoạt trực tiếp <strong>HTTP Bot</strong> hoặc <strong>Selenium Bot</strong> để kiểm thử ngay trên giao diện web, không cần gõ lệnh terminal.
+            </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 0.85rem; color: var(--text-dim);">Trạng thái CAPTCHA hiện tại:</span>
+            {% if captcha_enabled %}
+                <span class="badge-status active"><span class="dot green"></span> ĐANG BẬT</span>
+            {% else %}
+                <span class="badge-status inactive"><span class="dot amber"></span> ĐANG TẮT (Dễ bị tấn công)</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2 Bot Control Columns -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem;">
+        
+        <!-- CARD BOT 1: HTTP BOT -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div>
+                    <h4 style="font-size: 1.05rem; font-weight: 700; color: #f3f4f6; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>🚀</span> HTTP Bot (Dò Mật Khẩu / Brute-force)
+                    </h4>
+                    <span style="font-size: 0.75rem; color: #06b6d4; font-weight: 600;">Dùng thư viện Python Requests &bull; API Spam</span>
+                </div>
+                <span class="tag tag-http-bot" style="font-size: 0.7rem;">HTTP POST</span>
+            </div>
+
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 1rem;">
+                Gửi liên tục các gói tin HTTP POST chứa từ điển mật khẩu phổ biến vào <code>/login</code>. Bot này <strong>không có khả năng giải Slider CAPTCHA</strong>.
+            </p>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem;">Số request:</label>
+                    <select id="http-bot-requests" style="width: 100%; padding: 0.4rem 0.6rem; background: #0b1120; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-sm); color: #fff; font-size: 0.85rem;">
+                        <option value="5">5 requests</option>
+                        <option value="10" selected>10 requests (Chuẩn)</option>
+                        <option value="15">15 requests (Kích hoạt Rate Limit)</option>
+                        <option value="20">20 requests</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.25rem;">Khoảng nghỉ (Delay):</label>
+                    <select id="http-bot-delay" style="width: 100%; padding: 0.4rem 0.6rem; background: #0b1120; border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius-sm); color: #fff; font-size: 0.85rem;">
+                        <option value="0.1">0.1s (Cực nhanh)</option>
+                        <option value="0.2" selected>0.2s (Mặc định)</option>
+                        <option value="0.5">0.5s</option>
+                    </select>
+                </div>
+            </div>
+
+            <button id="btn-run-http-bot" class="btn btn-primary" style="margin-top: auto; width: 100%; padding: 0.65rem 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;" onclick="runHttpBotSimulate()">
+                <span>▶ Bắt Đầu Tấn Công HTTP Bot</span>
+            </button>
+        </div>
+
+        <!-- CARD BOT 2: SELENIUM BOT -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 1.25rem; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                <div>
+                    <h4 style="font-size: 1.05rem; font-weight: 700; color: #f3f4f6; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>🤖</span> Selenium Bot (Tự Động Hóa Trình Duyệt)
+                    </h4>
+                    <span style="font-size: 0.75rem; color: #a78bfa; font-weight: 600;">Selenium WebDriver &bull; DOM Automation</span>
+                </div>
+                <span class="tag tag-selenium" style="font-size: 0.7rem;">Browser DOM</span>
+            </div>
+
+            <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.45; margin-bottom: 1rem;">
+                Tự động bật trình duyệt Chrome/Edge, điều khiển chuột và bàn phím điền form đăng nhập, sau đó quét DOM để nhận diện rào cản Slider CAPTCHA.
+            </p>
+
+            <div style="margin-bottom: 1rem; background: rgba(11, 17, 32, 0.6); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.08);">
+                <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.85rem; color: #e2e8f0;">
+                    <input type="checkbox" id="selenium-headless" style="width: 16px; height: 16px; accent-color: #38bdf8; cursor: pointer;">
+                    <span>Chạy ẩn trình duyệt (Headless Mode)</span>
+                </label>
+                <div style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.35rem; margin-left: 1.6rem;">
+                    💡 <em>Để trống tùy chọn này để xem cửa sổ Chrome/Edge tự động bật lên và gõ phím ngay trước mắt bạn!</em>
+                </div>
+            </div>
+
+            <button id="btn-run-selenium-bot" class="btn" style="margin-top: auto; width: 100%; padding: 0.65rem 1rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;" onclick="runSeleniumBotSimulate()">
+                <span>▶ Bắt Đầu Tấn Công Selenium Bot</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- TERMINAL CONSOLE MÀN HÌNH ĐEN -->
+    <div style="border-radius: var(--radius-md); overflow: hidden; border: 1px solid rgba(255,255,255,0.12); box-shadow: inset 0 2px 10px rgba(0,0,0,0.6);">
+        <!-- Terminal Header -->
+        <div style="background: #090d16; padding: 0.6rem 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="width: 11px; height: 11px; border-radius: 50%; background: #ef4444; display: inline-block;"></span>
+                <span style="width: 11px; height: 11px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+                <span style="width: 11px; height: 11px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                <span style="font-family: monospace; font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem;">
+                    console@captcha-lab:~$ bot_execution_stream
+                </span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <span id="bot-sim-status" style="font-size: 0.75rem; font-weight: 600; color: var(--text-dim); text-transform: uppercase;">
+                    ● SẴN SÀNG
+                </span>
+                <button type="button" onclick="clearBotConsole()" style="background: none; border: none; color: var(--text-dim); font-size: 0.75rem; cursor: pointer; padding: 0.2rem 0.5rem; border-radius: 4px;" onmouseover="this.style.color='#f3f4f6'" onmouseout="this.style.color='var(--text-dim)'">
+                    🗑️ Xóa màn hình
+                </button>
+            </div>
+        </div>
+
+        <!-- Terminal Output Screen -->
+        <div id="bot-terminal-output" style="background: #050811; color: #cbd5e1; font-family: 'Consolas', 'Fira Code', 'Courier New', monospace; font-size: 0.85rem; line-height: 1.6; padding: 1rem; min-height: 200px; max-height: 380px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;">
+<span style="color: #64748b;">[HỆ THỐNG] Phòng Thử Nghiệm An Ninh Bot sẵn sàng.
+[HƯỚNG DẪN] 
+1. Chọn tham số của HTTP Bot hoặc Selenium Bot ở trên và bấm nút Chạy.
+2. Bạn có thể bấm nút "Chuyển sang TẮT CAPTCHA" ở góc trên để thấy kịch bản tấn công thành công (A/B Testing)!
+-------------------------------------------------------------------------------------</span>
+</div>
+    </div>
+</div>
+<!-- ================= END BOT ATTACK SIMULATION LAB ================= -->
+
+<!-- Live Security Logs Table -->
+<div id="security-logs" class="table-card">
+    <div class="table-header-bar">
+        <h3>📋 Nhật Ký An Ninh Thời Gian Thực (Security Audit Logs)</h3>
+        <span style="font-size: 0.8rem; color: var(--text-dim);">50 sự kiện gần nhất &bull; Tự động làm mới mỗi 5 giây</span>
+    </div>
+
+    <div class="table-responsive">
+        <table class="security-table">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>IP Nguồn</th>
+                    <th>Tác tử (Bot Type)</th>
+                    <th>Endpoint</th>
+                    <th>Trạng thái CAPTCHA</th>
+                    <th>Kết quả CAPTCHA</th>
+                    <th>Mã HTTP</th>
+                    <th>Hành động ghi nhận</th>
+                </tr>
+            </thead>
+            <tbody id="logs-tbody">
+                {% if logs %}
+                    {% for log in logs %}
+                        <tr>
+                            <td>{{ log.timestamp }}</td>
+                            <td><span class="code-tag">{{ log.ip_address }}</span></td>
+                            <td>
+                                {% if log.bot_type == 'human' %}
+                                    <span class="tag tag-human">👤 Human</span>
+                                {% elif log.bot_type == 'http_bot' %}
+                                    <span class="tag tag-http-bot">🤖 HTTP Bot</span>
+                                {% elif log.bot_type == 'selenium_bot' %}
+                                    <span class="tag tag-selenium">🕷️ Selenium</span>
+                                {% else %}
+                                    <span class="tag tag-none">{{ log.bot_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="code-tag">{{ log.endpoint }}</span></td>
+                            <td>
+                                {% if log.captcha_enabled %}
+                                    <span style="color: #34d399; font-weight: 500;">Bật</span>
+                                {% else %}
+                                    <span style="color: #fbbf24; font-weight: 500;">Tắt</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.captcha_result == 'pass' %}
+                                    <span class="tag tag-pass">PASS</span>
+                                {% elif log.captcha_result == 'wrong_position' or log.captcha_result == 'fail' %}
+                                    <span class="tag tag-fail">WRONG_POS</span>
+                                {% elif log.captcha_result == 'replay_attack' or log.captcha_result == 'replayed' %}
+                                    <span class="tag tag-fail">REPLAY</span>
+                                {% elif log.captcha_result == 'expired' %}
+                                    <span class="tag tag-fail">EXPIRED</span>
+                                {% else %}
+                                    <span class="tag tag-none">{{ log.captcha_result }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong style="color: {% if log.status_code == 200 %}#34d399{% elif log.status_code == 429 %}#fbbf24{% else %}#f87171{% endif %};">
+                                    {{ log.status_code }}
+                                </strong>
+                            </td>
+                            <td>{{ log.action }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-dim);">
+                            Chưa có bản ghi nào trong hệ thống. Hãy thử đăng nhập hoặc chạy bot mô phỏng!
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ================= AUTO POLLING STATS =================
+setInterval(() => {
+    fetch('/api/stats')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const s = data.stats;
+                document.getElementById('stat-total').innerText = s.total_requests;
+                document.getElementById('stat-passed').innerText = s.passed_requests;
+                document.getElementById('stat-blocked').innerText = s.blocked_requests;
+                const botCount = (s.bot_breakdown.http_bot || 0) +
+                    (s.bot_breakdown.selenium_bot || 0) + (s.bot_breakdown.cv_bot || 0);
+                document.getElementById('stat-bots').innerText = botCount;
+            }
+        })
+        .catch(err => console.debug("Silent polling:", err));
+}, 5000);
+
+setInterval(() => {
+    refreshDashboardAfterAttack();
+}, 5000);
+
+// ================= BOT SIMULATION SCRIPTS =================
+function appendTerminalLine(text, type) {
+    type = type || 'info';
+    const term = document.getElementById('bot-terminal-output');
+    if (!term) return;
+
+    let color = '#cbd5e1';
+    if (type === 'header') color = '#38bdf8';
+    else if (type === 'success') color = '#34d399';
+    else if (type === 'blocked') color = '#f87171';
+    else if (type === 'warning') color = '#fbbf24';
+    else if (type === 'fail') color = '#facc15';
+    else if (type === 'error') color = '#ef4444';
+    else if (type === 'dim') color = '#64748b';
+
+    const div = document.createElement('div');
+    div.style.color = color;
+    div.textContent = text;
+    term.appendChild(div);
+    term.scrollTop = term.scrollHeight;
+}
+
+function clearBotConsole() {
+    const term = document.getElementById('bot-terminal-output');
+    if (term) {
+        term.innerHTML = '<span style="color: #64748b;">[ĐÃ XÓA MÀN HÌNH] Sẵn sàng cho phiên mô phỏng tiếp theo...</span>';
+    }
+}
+
+function setBotStatus(text, color) {
+    color = color || 'var(--text-dim)';
+    const el = document.getElementById('bot-sim-status');
+    if (el) {
+        el.textContent = text;
+        el.style.color = color;
+    }
+}
+
+async function refreshDashboardAfterAttack() {
+    // 1. Cập nhật các thẻ số liệu
+    fetch('/api/stats')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const s = data.stats;
+                const a = data.analytics;
+                document.getElementById('stat-total').innerText = s.total_requests;
+                document.getElementById('stat-passed').innerText = s.passed_requests;
+                document.getElementById('stat-blocked').innerText = s.blocked_requests;
+                const botCount = (s.bot_breakdown.http_bot || 0) +
+                    (s.bot_breakdown.selenium_bot || 0) + (s.bot_breakdown.cv_bot || 0);
+                document.getElementById('stat-bots').innerText = botCount;
+            }
+        })
+        .catch(err => console.debug("Silent stats refresh:", err));
+
+    // 2. Cập nhật bảng Security Audit Logs tức thì
+    fetch('/api/logs')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' && data.logs) {
+                const tbody = document.getElementById('logs-tbody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                data.logs.forEach(log => {
+                    const tr = document.createElement('tr');
+                    
+                    let botTag = '<span class="tag tag-none">' + (log.bot_type || 'unknown') + '</span>';
+                    if (log.bot_type === 'human') botTag = '<span class="tag tag-human">👤 Human</span>';
+                    else if (log.bot_type === 'http_bot') botTag = '<span class="tag tag-http-bot">🤖 HTTP Bot</span>';
+                    else if (log.bot_type === 'selenium_bot') botTag = '<span class="tag tag-selenium">🕷️ Selenium</span>';
+                    else if (log.bot_type === 'cv_bot') botTag = '<span class="tag tag-cv">👁️ CV Solver</span>';
+
+                    let capState = log.captcha_enabled ? '<span style="color: #34d399; font-weight: 500;">Bật</span>' : '<span style="color: #fbbf24; font-weight: 500;">Tắt</span>';
+
+                    let capRes = '<span class="tag tag-none">' + log.captcha_result + '</span>';
+                    if (log.captcha_result === 'pass') capRes = '<span class="tag tag-pass">PASS</span>';
+                    else if (log.captcha_result === 'wrong_position' || log.captcha_result === 'fail') capRes = '<span class="tag tag-fail">WRONG_POS</span>';
+                    else if (log.captcha_result === 'replay_attack' || log.captcha_result === 'replayed') capRes = '<span class="tag tag-fail">REPLAY</span>';
+                    else if (log.captcha_result === 'expired') capRes = '<span class="tag tag-fail">EXPIRED</span>';
+
+                    let statusColor = log.status_code === 200 ? '#34d399' : (log.status_code === 429 ? '#fbbf24' : '#f87171');
+
+                    tr.innerHTML = '<td>' + log.timestamp + '</td>' +
+                        '<td><span class="code-tag">' + log.ip_address + '</span></td>' +
+                        '<td>' + botTag + '</td>' +
+                        '<td><span class="code-tag">' + log.endpoint + '</span></td>' +
+                        '<td>' + capState + '</td>' +
+                        '<td>' + capRes + '</td>' +
+                        '<td><strong style="color: ' + statusColor + ';">' + log.status_code + '</strong></td>' +
+                        '<td>' + log.action + '</td>';
+                    tbody.appendChild(tr);
+                });
+            }
+        })
+        .catch(err => console.debug("Silent logs refresh:", err));
+}
+
+// 1. Chạy HTTP Bot
+function runHttpBotSimulate() {
+    const btn = document.getElementById('btn-run-http-bot');
+    const reqCount = document.getElementById('http-bot-requests').value;
+    const delay = document.getElementById('http-bot-delay').value;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span> Đang gửi tấn công...';
+    setBotStatus('● HTTP BOT ĐANG CHẠY...', '#38bdf8');
+
+    appendTerminalLine(
+        '>>> [' + new Date().toLocaleTimeString() + '] BẮT ĐẦU PHIÊN TẤN CÔNG HTTP BOT (' +
+        reqCount + ' requests, delay ' + delay + 's)...',
+        'header'
+    );
+
+    fetch('/api/bot/http-simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requests: parseInt(reqCount), delay: parseFloat(delay), username: 'admin' })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success' && data.logs) {
+            data.logs.forEach(item => {
+                appendTerminalLine(item.message, item.type);
+            });
+            setBotStatus('● HOÀN THÀNH', '#10b981');
+        } else {
+            appendTerminalLine('[!] Lỗi: ' + (data.message || 'Không thể thực thi bot'), 'error');
+            setBotStatus('● THẤT BẠI', '#ef4444');
+        }
+    })
+    .catch(err => {
+        appendTerminalLine('[!] Lỗi kết nối API: ' + err, 'error');
+        setBotStatus('● LỖI MẠNG', '#ef4444');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<span>▶ Bắt Đầu Tấn Công HTTP Bot</span>';
+        refreshDashboardAfterAttack();
+    });
+}
+
+// 2. Chạy Selenium Bot
+function runSeleniumBotSimulate() {
+    const btn = document.getElementById('btn-run-selenium-bot');
+    const headless = document.getElementById('selenium-headless').checked;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 0.8s linear infinite;"></span> Selenium đang khởi động...';
+    setBotStatus('● SELENIUM BOT ĐANG CHẠY...', '#a78bfa');
+
+    appendTerminalLine(
+        '>>> [' + new Date().toLocaleTimeString() + '] KHỞI ĐỘNG SELENIUM BOT (Headless: ' +
+        headless + ')...',
+        'header'
+    );
+
+    fetch('/api/bot/selenium-simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'admin', password: 'password123', headless: headless })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success' && data.logs) {
+            data.logs.forEach(item => {
+                appendTerminalLine(item.message, item.type);
+            });
+            setBotStatus('● HOÀN THÀNH', '#10b981');
+        } else {
+            appendTerminalLine('[!] Lỗi: ' + (data.message || 'Không thể thực thi Selenium'), 'error');
+            setBotStatus('● THẤT BẠI', '#ef4444');
+        }
+    })
+    .catch(err => {
+        appendTerminalLine('[!] Lỗi kết nối API: ' + err, 'error');
+        setBotStatus('● LỖI MẠNG', '#ef4444');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<span>▶ Bắt Đầu Tấn Công Selenium Bot</span>';
+        refreshDashboardAfterAttack();
+    });
+}
+</script>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}

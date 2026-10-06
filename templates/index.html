@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Trang Chủ - Tổng Quan Đề Tài{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2.5rem; text-align: center;">
+    <h1 style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.75rem; letter-spacing: -0.03em;">
+        Hệ Thống Thử Nghiệm Slider CAPTCHA & Phòng Thủ Bot
+    </h1>
+    <p style="color: var(--text-muted); max-width: 780px; margin: 0 auto; font-size: 1.05rem;">
+        Đề tài: <em>"Tìm hiểu CAPTCHA và các phương pháp tạo CAPTCHA trong ứng dụng Web – Xây dựng website tích hợp CAPTCHA, mô phỏng hành vi tự động/bot trong môi trường kiểm thử và triển khai các biện pháp tăng cường bảo vệ."</em>
+    </p>
+</div>
+
+<!-- 3 Actors Card Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+    <!-- Actor 1: Human User -->
+    <div class="card" style="border-top: 3px solid #10b981;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">👤</div>
+        <h3 style="color: #fff; font-size: 1.2rem; margin-bottom: 0.5rem;">1. Người Dùng Thật (Human)</h3>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+            Người dùng tương tác qua giao diện web, quan sát ảnh mảnh ghép và kéo thanh slider để khớp vị trí chính xác.
+        </p>
+        <div style="font-size: 0.8rem; color: #34d399; font-weight: 600;">
+            ✓ Hành vi: Trực quan, có nhận thức ngữ cảnh thị giác.
+        </div>
+    </div>
+
+    <!-- Actor 2: HTTP Bot -->
+    <div class="card" style="border-top: 3px solid #ef4444;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">🤖</div>
+        <h3 style="color: #fff; font-size: 1.2rem; margin-bottom: 0.5rem;">2. HTTP Bot (Requests)</h3>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+            Script Python sử dụng thư viện <span class="code-tag">requests</span> để spam brute-force API Login/Register trực tiếp ở tầng HTTP.
+        </p>
+        <div style="font-size: 0.8rem; color: #f87171; font-weight: 600;">
+            ✗ Điểm yếu: Không chạy JavaScript, không render canvas/puzzle để giải challenge.
+        </div>
+    </div>
+
+    <!-- Actor 3: Selenium Bot -->
+    <div class="card" style="border-top: 3px solid #f59e0b;">
+        <div style="font-size: 2rem; margin-bottom: 0.75rem;">🕷️</div>
+        <h3 style="color: #fff; font-size: 1.2rem; margin-bottom: 0.5rem;">3. Selenium Bot (Headless)</h3>
+        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+            Bot tự động hóa trình duyệt DOM, có thể tự động điền form `username`/`password`. Tuy nhiên, khi gặp rào cản Slider CAPTCHA, bot bị phát hiện và dừng lại.
+        </p>
+        <div style="font-size: 0.8rem; color: #fbbf24; font-weight: 600;">
+            ⚡ Phản ứng: Phát hiện Slider CAPTCHA và dừng kịch bản tấn công.
+        </div>
+    </div>
+</div>
+
+<!-- Architecture & Defense Highlights -->
+<div class="card" style="margin-bottom: 2rem;">
+    <h3 style="color: #fff; font-size: 1.25rem; margin-bottom: 1rem;">🛡️ Các Lớp Phòng Thủ Chiều Sâu (Defense-in-Depth)</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem;">
+        <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-cyan); margin-bottom: 0.35rem;">1. Dynamic Puzzle CAPTCHA</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Sinh ngẫu nhiên ảnh nền, cắt mảnh ghép và tạo bóng khuyết (notch) phía server bằng Pillow.
+            </p>
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-cyan); margin-bottom: 0.35rem;">2. Server-side Nonce & TTL</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Lưu Challenge ID trên SQLite. Chỉ chấp nhận trong vòng 120s và khóa ngay sau lần kiểm tra đầu tiên (chống Replay Attack).
+            </p>
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-cyan); margin-bottom: 0.35rem;">3. IP Rate Limiting</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Giới hạn 10 requests / 10 giây trên mỗi địa chỉ IP. Trả mã HTTP 429 khi có dấu hiệu DDoS/brute-force dồn dập.
+            </p>
+        </div>
+        <div style="background: rgba(0,0,0,0.25); padding: 1rem; border-radius: var(--radius-md);">
+            <h4 style="color: var(--accent-cyan); margin-bottom: 0.35rem;">4. Security Forensics Log</h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">
+                Ghi nhận mọi sự kiện: IP, User-Agent, CAPTCHA result, Status code, và tự động phân loại Bot Type phục vụ điều tra.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Action CTA -->
+<div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+    <a href="{{ url_for('demo') }}" class="btn btn-primary" style="width: auto; padding: 0.85rem 2rem;">
+        🧪 Vào Phòng Demo Thực Hành
+    </a>
+    <a href="{{ url_for('login') }}" class="btn btn-primary" style="width: auto; padding: 0.85rem 2rem;">
+        🚀 Trải Nghiệm Đăng Nhập
+    </a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="width: auto; padding: 0.85rem 2rem;">
+        📊 Xem Dashboard Giám Sát
+    </a>
+</div>
+{% endblock %}

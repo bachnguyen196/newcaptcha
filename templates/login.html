@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Đăng Nhập{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="card">
+        <div class="card-header">
+            <h2>Đăng Nhập Hệ Thống</h2>
+            <p>Xác thực người dùng kèm cơ chế bảo vệ Slider CAPTCHA</p>
+        </div>
+
+        <form id="login-form" action="{{ url_for('login') }}" method="POST">
+            <div class="form-group">
+                <label for="username" class="form-label">Tên đăng nhập</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    class="form-input" 
+                    placeholder="Nhập username (vd: admin)" 
+                    required 
+                    autocomplete="username"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">Mật khẩu</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    class="form-input" 
+                    placeholder="Nhập mật khẩu" 
+                    required 
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <!-- Slider CAPTCHA Container -->
+            <div style="margin-bottom: 1.25rem;">
+                {% if captcha_enabled %}
+                    <div id="captcha-container"></div>
+                {% else %}
+                    <div class="alert warning" style="margin-bottom: 0; font-size: 0.85rem; padding: 0.75rem 1rem;">
+                        <span>⚠️ <strong>Cảnh báo Lab:</strong> CAPTCHA đang TẮT. Form đăng nhập dễ bị tấn công Brute-force/Bot.</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" id="btn-submit" class="btn btn-primary">
+                Đăng Nhập
+            </button>
+        </form>
+
+        <div class="card-footer">
+            Chưa có tài khoản? <a href="{{ url_for('register') }}">Đăng ký tài khoản mới</a>
+            <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-dim);">
+                Tài khoản mặc định: <span class="code-tag">admin</span> / <span class="code-tag">password123</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if captcha_enabled %}
+<script src="{{ url_for('static', filename='js/slider-captcha.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const captcha = new SliderCaptcha('captcha-container');
+    const form = document.getElementById('login-form');
+
+    form.addEventListener('submit', (e) => {
+        const userX = document.getElementById('captcha_user_x')?.value;
+        const challengeId = document.getElementById('captcha_challenge_id')?.value;
+
+        if (!challengeId || !userX || parseInt(userX, 10) <= 0) {
+            e.preventDefault();
+            alert("Vui lòng kéo thanh trượt để khớp mảnh ghép trước khi đăng nhập!");
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}Computer Vision CAPTCHA Lab{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/demo.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="cv-lab">
+    <header class="cv-hero">
+        <div>
+            <p class="cv-eyebrow">COMPUTER VISION DEFEAT · LOCAL LAB</p>
+            <h2>AI Solver nhận dạng Slider CAPTCHA</h2>
+            <p>Không đọc <code>target</code> từ API. Chụp canvas đang hiển thị, dùng OpenCV Template Matching tìm vị trí vùng khuyết, rồi gửi tọa độ dự đoán về server.</p>
+        </div>
+        <span class="cv-status {{ 'status-on' if captcha_enabled else 'status-off' }}">
+            <i></i> CAPTCHA {{ 'ĐANG BẬT' if captcha_enabled else 'ĐANG TẮT' }}
+        </span>
+    </header>
+
+    {% if captcha_enabled %}
+    <div class="cv-grid">
+        <section class="cv-card cv-challenge">
+            <div class="cv-card-heading">
+                <span class="cv-step">01</span>
+                <div><h3>Thử thách trực quan</h3><p>Canvas hiển thị ảnh nền và mảnh ghép rời. Có thể tự kéo hoặc để AI Solver tìm đích.</p></div>
+            </div>
+            <div class="cv-canvas-frame">
+                <canvas id="cv-capture-canvas" width="320" height="160" aria-label="Ảnh CAPTCHA được hiển thị trên canvas"></canvas>
+                <div id="cv-canvas-loading" class="cv-canvas-loading">Đang tạo CAPTCHA...</div>
+            </div>
+            <label class="cv-defense-toggle" for="cv-visual-defense">
+                <input id="cv-visual-defense" type="checkbox">
+                <span><strong>Bật phòng thủ ảnh</strong><small>Đổi màu viền, phủ nhiễu và thêm viền mồi ngẫu nhiên</small></span>
+            </label>
+            <label class="cv-slider-label" for="cv-manual-slider">Vị trí mảnh ghép <output id="cv-slider-value">0 px</output></label>
+            <input id="cv-manual-slider" class="cv-slider" type="range" min="0" max="272" value="0" disabled>
+            <div class="cv-actions">
+                <button id="cv-new-challenge" type="button" class="btn btn-secondary">↻ CAPTCHA mới</button>
+                <button id="cv-run-solver" type="button" class="btn btn-primary" disabled>🤖 Chạy OpenCV Solver</button>
+            </div>
+        </section>
+
+        <section class="cv-card cv-analysis">
+            <div class="cv-card-heading">
+                <span class="cv-step">02</span>
+                <div><h3>Phân tích bằng thị giác máy tính</h3><p>Solver chỉ nhận ảnh canvas, ảnh mảnh ghép PNG và tọa độ Y công khai.</p></div>
+            </div>
+            <div class="cv-pipeline">
+                <div class="pipeline-node"><span>🖼️</span><div><strong>Canvas snapshot</strong><small>320 × 160 px · PNG</small></div></div>
+                <span class="pipeline-arrow">→</span>
+                <div class="pipeline-node"><span>🔎</span><div><strong>OpenCV</strong><small>HSV mask + template matching</small></div></div>
+                <span class="pipeline-arrow">→</span>
+                <div class="pipeline-node"><span>📍</span><div><strong>Vị trí X</strong><small>Đối chiếu dung sai server</small></div></div>
+            </div>
+            <div id="cv-solver-result" class="cv-result" aria-live="polite">
+                <span class="result-indicator"></span>
+                <div><strong>Chưa chạy phân tích</strong><p>Nhấn “Chạy OpenCV Solver” để tìm vị trí trên ảnh.</p></div>
+            </div>
+            <div class="cv-explanation">
+                <strong>Phòng thủ thử nghiệm: dấu hiệu thị giác ngẫu nhiên</strong>
+                <p>Khi bật, server đổi màu viền thật, phủ nhiễu và thêm các viền mồi ngẫu nhiên theo từng challenge. Solver mẫu có thể bị đánh lừa bởi viền mồi hoặc không tìm thấy viền thật. Đây là minh họa giới hạn của solver mẫu, không phải biện pháp đủ mạnh để chống mọi mô hình thị giác máy tính.</p>
+            </div>
+            <div class="cv-verify">
+                <div class="cv-card-heading">
+                    <span class="cv-step">03</span>
+                    <div><h3>Kiểm chứng với server</h3><p>Server vẫn xác minh challenge, thời hạn, dùng một lần và sai số cho phép.</p></div>
+                </div>
+                <button id="cv-submit-solution" type="button" class="btn btn-primary" disabled>Gửi tọa độ dự đoán</button>
+                <p id="cv-verify-result" class="cv-verify-result" aria-live="polite">Chạy solver hoặc kéo thanh trượt để bật xác thực.</p>
+            </div>
+        </section>
+    </div>
+
+    <section class="cv-card cv-discussion">
+        <div class="cv-card-heading">
+            <span class="cv-step">04</span>
+            <div><h3>Ý nghĩa của thử nghiệm</h3><p>CAPTCHA hình ảnh tĩnh không đồng nghĩa với thử thách không thể tự động hóa.</p></div>
+        </div>
+        <div class="cv-takeaways">
+            <div><strong>🧠 Bài học</strong><p>Computer vision có thể khai thác cấu trúc hình ảnh để suy ra vị trí mà API không trả trực tiếp.</p></div>
+            <div><strong>🧰 Hướng tăng cường</strong><p>Nhóm có thể nghiên cứu méo ảnh nền, nhiễu động, ngẫu nhiên hóa hiển thị và phòng thủ nhiều lớp.</p></div>
+            <div><strong>⚖️ Giới hạn demo</strong><p>Đây là minh họa học thuật trên CAPTCHA local; không gửi ảnh hay request tới website bên ngoài.</p></div>
+        </div>
+    </section>
+
+    <section class="cv-card scenario-lab" aria-labelledby="scenario-title">
+        <div class="cv-card-heading">
+            <span class="cv-step">06</span>
+            <div>
+                <h3 id="scenario-title">Chuỗi sự cố CAPTCHA và SQLi — mô phỏng an toàn</h3>
+                <p>Minh họa tác động nối tiếp của lỗi token và SQL injection mà không gửi request thử nghiệm, truy vấn cơ sở dữ liệu hay dùng dữ liệu thật.</p>
+            </div>
+        </div>
+        <div class="scenario-safety" role="note">
+            Chỉ chạy logic minh họa trên trình duyệt. Token trong phần này là chuỗi giả, không phải challenge CAPTCHA và không dùng được để đăng nhập. Ô nhập chỉ được phân loại cục bộ; không dữ liệu nào được gửi tới server.
+        </div>
+        <label class="scenario-mode" for="scenario-mode">
+            Chế độ mô phỏng
+            <select id="scenario-mode">
+                <option value="vulnerable">Backend có lỗi (minh họa)</option>
+                <option value="defended">Backend đã phòng thủ</option>
+            </select>
+        </label>
+        <div class="scenario-grid">
+            <article class="scenario-stage">
+                <span class="scenario-number">GIAI ĐOẠN 1</span>
+                <h4>Token dùng lại (Replay)</h4>
+                <p>Gửi hai lần cùng một mã giả để so sánh kiểm tra không thu hồi token với kiểm tra dùng một lần.</p>
+                <button id="scenario-replay" type="button" class="btn btn-secondary">Mô phỏng gửi lại token</button>
+                <div id="scenario-replay-result" class="scenario-output" aria-live="polite">Chưa chạy mô phỏng.</div>
+            </article>
+            <article class="scenario-stage">
+                <span class="scenario-number">GIAI ĐOẠN 2</span>
+                <h4>Kiểm tra đầu vào (Fuzzing)</h4>
+                <p>Phân loại ký tự bất thường ngay trên trình duyệt; không thực thi SQL và không đo thời gian phản hồi.</p>
+                <label for="scenario-message">Nội dung góp ý mẫu</label>
+                <input id="scenario-message" type="text" maxlength="120" value="O'Brien: nội dung góp ý" autocomplete="off">
+                <button id="scenario-fuzz" type="button" class="btn btn-secondary">Phân tích chuỗi mẫu</button>
+                <div id="scenario-fuzz-result" class="scenario-output" aria-live="polite">Chưa phân tích đầu vào.</div>
+            </article>
+            <article class="scenario-stage">
+                <span class="scenario-number">GIAI ĐOẠN 3</span>
+                <h4>Dữ liệu bị lộ (mô phỏng)</h4>
+                <p>Chỉ hiển thị dữ liệu giả định được viết sẵn trong mã giao diện; không đọc bảng token hay dữ liệu người dùng.</p>
+                <button id="scenario-exfiltrate" type="button" class="btn btn-secondary">Xem kết quả minh họa</button>
+                <div id="scenario-token-result" class="scenario-output" aria-live="polite">Chưa có dữ liệu minh họa.</div>
+            </article>
+            <article class="scenario-stage">
+                <span class="scenario-number">GIAI ĐOẠN 4</span>
+                <h4>Tác động dây chuyền</h4>
+                <p>Diễn giải hậu quả giả định; không tạo request lặp, không đăng nhập và không thực hiện khai thác hàng loạt.</p>
+                <button id="scenario-impact" type="button" class="btn btn-secondary">Tính tác động giả lập</button>
+                <div id="scenario-impact-result" class="scenario-output" aria-live="polite">Chưa tính tác động.</div>
+            </article>
+        </div>
+    </section>
+
+    <section class="cv-card cv-evidence">
+        <div class="cv-card-heading">
+            <span class="cv-step">05</span>
+            <div><h3>Audit log của phiên demo</h3><p>Quan sát kết quả Template Matching và quyết định xác thực của server.</p></div>
+            <button id="cv-refresh-logs" type="button" class="btn btn-secondary">↻ Làm mới</button>
+        </div>
+        <div class="table-responsive">
+            <table class="security-table">
+                <thead><tr><th>Thời gian</th><th>Tác tử</th><th>Endpoint</th><th>Kết quả CAPTCHA</th><th>HTTP</th><th>Hành động</th></tr></thead>
+                <tbody id="cv-logs">
+                {% for log in logs %}
+                    <tr><td>{{ log.timestamp }}</td><td>{{ log.bot_type }}</td><td><code>{{ log.endpoint }}</code></td><td>{{ log.captcha_result }}</td><td>{{ log.status_code }}</td><td>{{ log.action }}</td></tr>
+                {% else %}
+                    <tr><td colspan="6" class="cv-empty">Chưa có log trong phiên này.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% else %}
+    <section class="cv-card cv-disabled">
+        <h3>CAPTCHA đang tắt</h3>
+        <p>Hãy bật CAPTCHA trong Dashboard để tạo challenge và chạy thử nghiệm nhận dạng ảnh.</p>
+        <a class="btn btn-primary" href="{{ url_for('dashboard') }}">Mở Dashboard</a>
+    </section>
+    {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if captcha_enabled %}
+<script src="{{ url_for('static', filename='js/demo.js') }}"></script>
+<script src="{{ url_for('static', filename='js/security-scenario.js') }}"></script>
+{% endif %}
+{% endblock %}
