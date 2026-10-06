@@ -22,7 +22,7 @@ Hệ thống được thiết kế để giải quyết bài toán phòng chốn
   ├── app.py                      # Ứng dụng Flask trung tâm & Điều phối API
   ├── config.py                   # Cấu hình tập trung (TTL, Tolerance, Rate Limit)
   ├── requirements.txt            # Thư viện phụ thuộc chuẩn
-  ├── run_tests.py                # Script chạy toàn bộ 20 bài kiểm thử tự động
+  ├── run_tests.py                # Script chạy toàn bộ 27 bài kiểm thử tự động
   ├── README.md                   # Tài liệu hướng dẫn & Kịch bản demo
   │
   ├── database/                   # Quản lý cơ sở dữ liệu SQLite
@@ -30,6 +30,7 @@ Hệ thống được thiết kế để giải quyết bài toán phòng chốn
   │   └── db.py                   # Hàm thao tác dữ liệu & CRUD bảo mật
   │
   ├── captcha/                    # Lõi cơ chế Slider Puzzle CAPTCHA
+  │   ├── cv_solver.py            # Solver OpenCV dùng trong phòng demo
   │   ├── generator.py            # Thuật toán sinh ảnh nền động & cắt mảnh Jigsaw (Pillow)
   │   └── validator.py            # Xác thực tọa độ, Replay Attack & TTL 120s
   │
@@ -44,17 +45,21 @@ Hệ thống được thiết kế để giải quyết bài toán phòng chốn
   ├── static/                     # Giao diện Dark Mode & Component kéo thả
   │   ├── css/
   │   │   ├── style.css           # Design system Cyber-security hiện đại
-  │   │   └── captcha.css         # Styling thanh trượt, mảnh ghép và hiệu ứng rung lắc
+  │   │   ├── captcha.css         # Styling thanh trượt, mảnh ghép và hiệu ứng rung lắc
+  │   │   └── demo.css            # Giao diện phòng lab và mô phỏng chia đôi
   │   └── js/
   │       ├── main.js             # Tiện ích quản lý giao diện
-  │       └── slider-captcha.js   # Bộ điều khiển kéo thả hỗ trợ Mouse & Touch
+  │       ├── slider-captcha.js   # Bộ điều khiển kéo thả hỗ trợ Mouse & Touch
+  │       ├── demo.js             # Điều khiển phòng demo OpenCV
+  │       └── security-scenario.js # Kịch bản Red Team / Blue Team giả lập
   │
   ├── templates/                  # Giao diện HTML Jinja2
   │   ├── base.html               # Khung sườn chung & Navbar trạng thái
   │   ├── index.html              # Trang tổng quan đề tài & mô hình 3 tác tử
   │   ├── login.html              # Form đăng nhập tích hợp Slider CAPTCHA
   │   ├── register.html           # Form đăng ký tích hợp Slider CAPTCHA
-  │   └── dashboard.html          # Bảng điều khiển an ninh & đối chiếu A/B
+  │   ├── dashboard.html          # Bảng điều khiển an ninh & đối chiếu A/B
+  │   └── demo.html               # Phòng demo OpenCV và kịch bản 4 giai đoạn
   │
   └── tests/                      # Bộ kiểm thử tự động (Unit Tests)
       ├── test_captcha_generator.py
@@ -101,12 +106,12 @@ python app.py
 > Server sẽ chạy tại địa chỉ: `http://127.0.0.1:5000`  
 > Tài khoản thử nghiệm mặc định có sẵn: `admin` / `password123`
 
-### Bước 3: Chạy bộ kiểm thử tự động (20 Test Cases)
+### Bước 3: Chạy bộ kiểm thử tự động (27 Test Cases)
 Mở một cửa sổ dòng lệnh khác và chạy:
 ```bash
 python run_tests.py
 ```
-Toàn bộ 20 bài kiểm thử (Sinh CAPTCHA, Xác thực tọa độ, Replay Attack, TTL Expired, Rate Limiter, Luồng Đăng nhập) sẽ được thực thi và in báo cáo chi tiết.
+Toàn bộ 27 bài kiểm thử (Sinh CAPTCHA, Xác thực tọa độ, Replay Attack, TTL, Rate Limiter, Luồng Đăng nhập, API solver và giao diện demo) sẽ được thực thi và in báo cáo chi tiết.
 
 ---
 
@@ -125,13 +130,13 @@ Truy cập `http://127.0.0.1:5000/demo` để chạy thử nghiệm nhận dạn
 Solver chỉ nhận ảnh canvas, ảnh mảnh ghép và Y công khai; không đọc cơ sở dữ liệu hay `target_x`. Thử nghiệm chỉ chạy trên CAPTCHA của lab local. Cần cài dependency mới bằng `pip install -r requirements.txt`.
 
 ### 🧩 Chuỗi sự cố token và SQLi (mô phỏng giao diện)
-Trong cùng trang `/demo`, phần **“Chuỗi sự cố CAPTCHA và SQLi — mô phỏng an toàn”** minh họa bốn giai đoạn của kịch bản thuyết trình:
-1. Chọn **Backend có lỗi** hoặc **Backend đã phòng thủ**, rồi so sánh hai kết quả gửi cùng một token giả.
-2. Nhập chuỗi mẫu và xem bộ phân loại ký tự chạy cục bộ trên trình duyệt.
-3. Ở chế độ lỗi, giao diện hiển thị một số chuỗi `SIM-NOT-A-REAL-TOKEN` viết sẵn để minh họa dữ liệu giả định bị lộ.
-4. Xem phép tính tác động giả định; giao diện không gửi request hàng loạt.
+Trong trang `/demo`, phần **“Chuỗi sự cố CAPTCHA và SQLi”** dùng bố cục chia đôi: website và bảng database giả ở bên trái, terminal mô phỏng ở bên phải. Thanh tiến trình cho phép chuyển giữa bốn giai đoạn:
+1. Bấm **Mô phỏng giải** để tạo một token giả trong bảng demo. Sau đó bấm **Mô phỏng gửi lại token** nhiều lần để so sánh trạng thái token không thu hồi với chế độ chặn replay. Mỗi lần bấm thêm một dòng vào terminal log; dòng mới nhất được tô sáng, log tự cuộn xuống cuối và vẫn được giữ khi đổi chế độ trong cùng trang.
+2. Bấm **Chạy chuỗi mô phỏng** để xem các nhãn đầu vào và timer dựng sẵn minh họa phản hồi bình thường/bất thường. Không có phép đo response thật.
+3. Chạy hiệu ứng dữ liệu neon để thấy các chuỗi giả lập xuất hiện lần lượt trong terminal; không có dữ liệu nào được đọc từ database.
+4. Chạy bộ đếm 10.000 để minh họa tác động giả định; form bên trái sẽ mờ, khóa tương tác và hiện `SYSTEM OVERLOAD`. Đây chỉ là hoạt ảnh trình duyệt, không phải request hoặc tài khoản.
 
-Đây là **mô phỏng UI**, không phải một backend dễ khai thác: không có SQL injection thật, không có truy vấn dữ liệu token, không xác thực bằng token mô phỏng, không fuzzing HTTP/time-based và không tạo request đăng nhập hàng loạt. Token mẫu vô hiệu, đầu vào chỉ được xử lý trong JavaScript ở trình duyệt. CAPTCHA thật và kiểm tra replay hiện có của ứng dụng vẫn giữ chế độ phòng thủ.
+Chọn **Backend có lỗi (mô phỏng)** hoặc **Backend đã phòng thủ** để đổi kết quả trực quan. Nút gửi góp ý chỉ cập nhật thông báo cục bộ; không gửi form lên server. Toàn bộ tương tác của bốn giai đoạn chỉ dùng JavaScript và dữ liệu mẫu trong trình duyệt; không có SQL injection thật, truy vấn database, token xác thực thật, fuzzing HTTP/time-based hay request đăng nhập hàng loạt. Terminal log chỉ tồn tại trong trang hiện tại và được làm mới khi tải lại trang. CAPTCHA thật và kiểm tra replay của ứng dụng vẫn giữ chế độ phòng thủ.
 
 Hội đồng chấm thi có thể trực tiếp quan sát hiệu quả bảo mật qua 4 kịch bản sau:
 
